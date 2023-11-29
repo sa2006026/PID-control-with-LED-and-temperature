@@ -131,27 +131,27 @@ void loop() {
     }
 
     // Calculate PID
-    float error = setpoint - input;
-    iTerm += (Ki * error);
-    iTerm = constrain(iTerm, 0, 255);  // Constrain iTerm to prevent integral windup
+    // float error = setpoint - input;
+    // iTerm += (Ki * error);
+    // iTerm = constrain(iTerm, 0, 255);  // Constrain iTerm to prevent integral windup
 
-    dInput = (input - lastInput);
+    // dInput = (input - lastInput);
 
-    // Compute PID output
-    output = Kp * error + iTerm - Kd * dInput;
-    // output = constrain(output, 0, 255);  // Constrain the output to be between 0 and 255
+    // // Compute PID output
+    // output = Kp * error + iTerm - Kd * dInput;
+    // // output = constrain(output, 0, 255);  // Constrain the output to be between 0 and 255
 
-    // Convert PID output to LED brightness
-    ledBrightness = constrain((int)output,0,255);
+    // // Convert PID output to LED brightness
+    // ledBrightness = constrain((int)output,0,255);
 
     // Update LED brightness
-    analogWrite(led, ledBrightness);
+    analogWrite(led, 255);
 
     // Debugging prints
     Serial.print("Temperature: "); Serial.println(input);
-    Serial.print("Setpoint: "); Serial.println(setpoint);
-    Serial.print("PID Output: "); Serial.println(output);
-    Serial.print("LED Brightness: "); Serial.println(ledBrightness);
+    // Serial.print("Setpoint: "); Serial.println(setpoint);
+    // Serial.print("PID Output: "); Serial.println(output);
+    // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
 
     // Add a delay for stability
     delay(1);  // Delay of 1 millisecond
