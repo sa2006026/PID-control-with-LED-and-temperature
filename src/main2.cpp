@@ -5,26 +5,36 @@
 #include <math.h>
 
 // Temperature sensor variables and constants
-float  Vref; /* The external reference voltage applied between pins REFIN(+) and REFIN(-)and  resulting from the excitation current flowing through the reference resistor  */
-float  GAIN; /* Gain of the AD7793 unternal instrumentation amplifier */
-float RREF = 402.0; /* The reference resistor: here, 402 ohm or 4.02  Kohm, 0.1%, 10ppm/C */
-float RRTD; /* The measured resistance of the RTD */ 
-float temp_PT100; /* The temperature read on the analog input channel 1 */
-float R0 = 100.0;  /* RTD resistance at 0C */
+float Vref;
+float GAIN;
+float RREF = 402.0;
+float RRTD;
+float temp_PT100;
+float R0 = 100.0;
 float Voltage_therm;
 float tempfinal;
+
 // PID parameters
 float Kp = 5.0;     // Proportional gain
-float Ki = 1;     // Integral gain
+float Ki = 1;       // Integral gain
 float Kd = 1.0;     // Derivative gain
 
-float setpoint = 33.0;  // Desired temperature
+float setpoint = 100.0;
 float input, output, lastInput;
 float iTerm, dInput;
 
 // LED control variables
 int led = 6;
 int ledBrightness = 0;
+
+// Thermocycle control constants
+const float UpperTemperatureThreshold = 30.0;
+const float LowerTemperatureThreshold = 27.0;
+bool increasingTemperature = true;
+
+unsigned long previousMillis = 0;
+const long interval = 500;
+
 
 // Function to read temperature from the sensor
 float Get_Thermocouple(){
@@ -114,45 +124,66 @@ void setup() {
 
     // Initialize temperature sensor
     AD7793_Init();
-    lastInput = Get_PT100() + Get_Thermocouple();  // Initialize lastInput with the current temperature
+    lastInput = Get_PT100() + Get_Thermocouple();
 }
 
 void loop() {
-    // Read current temperature
-    temp_PT100 = Get_PT100();
-    Voltage_therm = Get_Thermocouple();
-    input = temp_PT100 + Voltage_therm;
+    //Read current temperature
+    
+      temp_PT100 = Get_PT100();
+      Voltage_therm = Get_Thermocouple();
+      input = temp_PT100 + Voltage_therm ;
+    
+    // temp_PT100 = Get_PT100();
+    // Voltage_therm = Get_Thermocouple();
+    //input = temp_PT100 + Voltage_therm;
 
-    // Dynamic setpoint adjustment
-    if (input >= 33.0) {
-        setpoint = 28.0;  // Change setpoint to 28°C once temperature reaches or exceeds 33°C
-    } else if (input <= 28.0) {
-        setpoint = 33.0;  // Change setpoint to 33°C once temperature drops to or below 28°C
+   
+    // Thermocycle logic
+    if (increasingTemperature) {
+        if (input >= UpperTemperatureThreshold) {
+            increasingTemperature = false;
+            setpoint = LowerTemperatureThreshold;
+        } else {
+            setpoint = UpperTemperatureThreshold;
+        }
+    } else {
+        if (input <= LowerTemperatureThreshold) {
+            increasingTemperature = true;
+            setpoint = UpperTemperatureThreshold;
+        } else {
+            setpoint = LowerTemperatureThreshold;
+        }
     }
 
     // Calculate PID
-    // float error = setpoint - input;
-    // iTerm += (Ki * error);
-    // iTerm = constrain(iTerm, 0, 255);  // Constrain iTerm to prevent integral windup
+    float error = setpoint - input;
+    iTerm += (Ki * error);
+    iTerm = constrain(iTerm, 0, 255);
 
-    // dInput = (input - lastInput);
+    dInput = (input - lastInput);
 
-    // // Compute PID output
-    // output = Kp * error + iTerm - Kd * dInput;
-    // // output = constrain(output, 0, 255);  // Constrain the output to be between 0 and 255
+    // Compute PID output
+    output = Kp * error + iTerm - Kd * dInput;
 
-    // // Convert PID output to LED brightness
-    // ledBrightness = constrain((int)output,0,255);
-
-    // Update LED brightness
-    analogWrite(led, 255);
+    // Adjust LED brightness based on PID output
+    if (increasingTemperature) {
+        ledBrightness = constrain((int)output, 0, 255);
+    } else {
+        ledBrightness = 255 - constrain((int)output, 0, 255);
+    }
+    analogWrite(led, ledBrightness);
 
     // Debugging prints
     Serial.print("Temperature: "); Serial.println(input);
+
     // Serial.print("Setpoint: "); Serial.println(setpoint);
     // Serial.print("PID Output: "); Serial.println(output);
     // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
 
     // Add a delay for stability
-    delay(1);  // Delay of 1 millisecond
+    delay(1);
+
+    // Update lastInput for next iteration
+    lastInput = input;
 }
