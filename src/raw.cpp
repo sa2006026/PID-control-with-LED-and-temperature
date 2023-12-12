@@ -146,7 +146,7 @@ float Get_PT100_init(){
   RRTD = RREF * conv_PT100 / 0x7fffff; /* Computes the RTD resistance from the conversion  code */
   //Serial.print(RRTD);
   //Serial.print("\n");
-  temp = (RRTD-100)/0.385055;    /* Callender-Van  Dusen equation temp > 0C */
+  temp = (RRTD-100)/0.400574;    /* Callender-Van  Dusen equation temp > 0C */
   //Serial.println(temp);
   //delay(1000);
   return temp;
@@ -190,11 +190,20 @@ void loop() {
     //Read current temperature
       // temp_PT100 = Get_PT100();
       // Voltage_therm = Get_Thermocouple_init();
+      int32_t DataT1;
+      float Voltage;
+      float Vref = 1.17;
 
+      temp_PT100 = Get_PT100_init();
       Rawdata = Get_RawData();
+      DataT1 = (Rawdata - 0x800000);
+      Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
+      Voltage *= 27910.611650905546;
+      Voltage /= 32;
+      input = Voltage + temp_PT100;
       
       // input =  temp_PT100 + Voltage_therm; //get temperature
-      input = Rawdata;
+      // input = Rawdata;
       
     // temp_PT100 = Get_PT100();
     // Voltage_therm = Get_Thermocouple();
@@ -237,13 +246,15 @@ void loop() {
 
     // Debugging prints
     Serial.print("Temperature: "); Serial.println(input);
+    Serial.print("Base: "); Serial.println(temp_PT100);
+    Serial.print("Rawdata: "); Serial.println(Rawdata);
 
     // Serial.print("Setpoint: "); Serial.println(setpoint);
     // Serial.print("PID Output: "); Serial.println(output);
     // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
 
     // Add a delay for stability
-    delay(1);
+    delay(200);
 
     // Update lastInput for next iteration
     // lastInput = input;
