@@ -190,6 +190,7 @@ void loop() {
     //Read current temperature
       // temp_PT100 = Get_PT100();
       // Voltage_therm = Get_Thermocouple_init();
+      unsigned long currentTime = millis();
       int32_t DataT1;
       float Voltage;
       float Vref = 1.17;
@@ -242,19 +243,21 @@ void loop() {
     // } else {
     //     ledBrightness = 255 - constrain((int)output, 0, 255);
     // }
-    // analogWrite(led, ledBrightness);
+     analogWrite(led, 255);
 
     // Debugging prints
-    Serial.print("Temperature: "); Serial.println(input);
-    Serial.print("Base: "); Serial.println(temp_PT100);
-    Serial.print("Rawdata: "); Serial.println(Rawdata);
+    Serial.print("Temperature: "); Serial.print(input);
+    Serial.print(" Time: "); 
+    Serial.println(currentTime); 
+    // Serial.print("Base: "); Serial.println(temp_PT100);
+    // Serial.print("Rawdata: "); Serial.println(Rawdata);
 
     // Serial.print("Setpoint: "); Serial.println(setpoint);
     // Serial.print("PID Output: "); Serial.println(output);
     // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
 
     // Add a delay for stability
-    delay(200);
+    delay(1);
 
     // Update lastInput for next iteration
     // lastInput = input;
