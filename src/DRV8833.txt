@@ -1,0 +1,20 @@
+#include <Arduino.h>
+
+// Define the control pins
+const int controlPin1 = 5; // AIN1 and BIN1 connected together
+const int controlPin2 = 6; // AIN2 and BIN2 connected together
+
+void setup() {
+  // Set the control pins as outputs
+  pinMode(controlPin1, OUTPUT);
+  pinMode(controlPin2, OUTPUT);
+}
+
+void loop() {
+  // Drive motor forward
+  digitalWrite(controlPin1, HIGH);
+  digitalWrite(controlPin2, HIGH);
+  delay(2000); // Run for 2 seconds
+  printf("1");
+  
+}

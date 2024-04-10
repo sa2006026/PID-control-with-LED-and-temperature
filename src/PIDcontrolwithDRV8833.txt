@@ -19,19 +19,22 @@ float Kp = 5.0;     // Proportional gain
 float Ki = 1;       // Integral gain
 float Kd = 1.0;     // Derivative gain
 
-float setpoint = 100.0;
-float input, output, lastInput;
-float iTerm, dInput;
+float setpoint = 40; // Initial setpoint, halfway for demonstration
+float input, output;
+float iTerm, lastInput = 0;
+float dInput, error;
 
 // LED control variables
 int led = 6;
 int ledBrightness = 0;
 
-int i = 0;
 // Thermocycle control constants
-const float UpperTemperatureThreshold = 30.0;
-const float LowerTemperatureThreshold = 27.0;
-bool increasingTemperature = true;
+const float UpperTemperatureThreshold = 40;
+const float LowerTemperatureThreshold = 30;
+
+
+int cycleCount = 0;
+const int TotalCycles = 30; // Target cycle count
 
 unsigned long previousMillis = 0;
 const long interval = 500;
@@ -243,12 +246,33 @@ void loop() {
     // } else {
     //     ledBrightness = 255 - constrain((int)output, 0, 255);
     // }
-     analogWrite(led, 255);
+    if (cycleCount < TotalCycles * 2) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
+            setpoint = LowerTemperatureThreshold;
+            cycleCount++;
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
+            setpoint = UpperTemperatureThreshold;
+            cycleCount++;
+        }
+    }
+
+    // Calculate PID
+    error = setpoint - input;
+    iTerm += (Ki * error);
+    // Prevent integral windup
+    iTerm = constrain(iTerm, 0, 255);
+    dInput = (input - lastInput);
+
+    // Compute PID Output
+    output = Kp * error + iTerm - Kd * dInput;
+    ledBrightness = constrain((int)output, 0, 255);
+    analogWrite(led, ledBrightness);
 
     // Debugging prints
     Serial.print("Time: ");
     Serial.print(currentTime);
-    Serial.print("   Temperature: "); Serial.println(input);
+    Serial.print(" Temperature: "); Serial.print(input);
+    Serial.print(" PIDoutput "); Serial.println(output);
 
     // Serial.print("Base: "); Serial.println(temp_PT100);
     // Serial.print("Rawdata: "); Serial.println(Rawdata);
