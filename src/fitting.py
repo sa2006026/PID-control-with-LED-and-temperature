@@ -34,7 +34,7 @@ y_fit = linear_func(x_fit, Temp)
 plt.scatter(x_data, y_data, label='Data')
 
 # Plot the fitted curve with adjusted intercept
-plt.plot(x_fit, y_fit - linear_func(0, Temp), 'r-', label='Fitted Curve')
+plt.plot(x_fit, linear_func(x_fit, Temp), 'r-', label='Fitted Curve')
 
 # Calculate R-squared value
 y_pred = linear_func(x_data, Temp)
@@ -42,14 +42,17 @@ r2 = r2_score(y_data, y_pred)
 
 # Set the x and y axis labels
 plt.xlabel('x')
-plt.ylabel('y')
+plt.ylabel('Temperature')
 
 # Add a legend
 plt.legend()
 
 # Add R-squared value as a text annotation
 rsquared_text = f'R-squared: {r2:.4f}'
-plt.annotate(rsquared_text, xy=(0.05, 0.9), xycoords='axes fraction')
+plt.annotate(rsquared_text, xy=(0.05, 0.7), xycoords='axes fraction')
+
+# Print the linear equation with the fitted parameters
+print(f"Linear Equation: y = {Temp:.4f} * x / 32 + 26.6")
 
 # Show the plot
 plt.show()
