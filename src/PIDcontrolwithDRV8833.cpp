@@ -19,19 +19,26 @@ float Kp = 5.0;     // Proportional gain
 float Ki = 1;       // Integral gain
 float Kd = 1.0;     // Derivative gain
 
-float setpoint = 100.0;
-float input, output, lastInput;
-float iTerm, dInput;
+float setpoint = 95; // Initial setpoint, halfway for demonstration
+float input, output;
+float iTerm, lastInput = 0;
+float dInput, error;
 
 // LED control variables
-int led = 6;
+int led = 5;
+int led2 = 3;
 int ledBrightness = 0;
 
-int i = 0;
+int fan = 3;
+int fan2 = 10;
+
 // Thermocycle control constants
-const float UpperTemperatureThreshold = 30.0;
-const float LowerTemperatureThreshold = 27.0;
-bool increasingTemperature = true;
+const float UpperTemperatureThreshold = 95;
+const float LowerTemperatureThreshold = 60;
+
+
+int cycleCount = 0;
+const int TotalCycles = 30; // Target cycle count
 
 unsigned long previousMillis = 0;
 const long interval = 500;
@@ -195,7 +202,7 @@ void loop() {
       float Voltage;
       float Vref = 1.17;
 
-      temp_PT100 = Get_PT100_init();
+      
       Rawdata = Get_RawData();
       DataT1 = (Rawdata - 0x800000);
       Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
@@ -243,12 +250,40 @@ void loop() {
     // } else {
     //     ledBrightness = 255 - constrain((int)output, 0, 255);
     // }
-     analogWrite(led, 255);
+    
+    if (cycleCount < TotalCycles * 2 -1) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
+            setpoint = LowerTemperatureThreshold;
+            analogWrite(led2, 255);
+            cycleCount++;
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
+            setpoint = UpperTemperatureThreshold;
+            analogWrite(led2, 0);
+            cycleCount++;
+        }
+    }
+
+    // Calculate PID
+    error = setpoint - input;
+    iTerm += (Ki * error);
+    // Prevent integral windup
+    iTerm = constrain(iTerm, 0, 255);
+    dInput = (input - lastInput);
+
+    // Compute PID Output
+    output = Kp * error + iTerm - Kd * dInput;
+    ledBrightness = constrain((int)output, 0, 255);
+    analogWrite(led, ledBrightness);
+    
+    // analogWrite(led, 30); //Test Focus
+    // analogWrite(led2, ledBrightness);
 
     // Debugging prints
     Serial.print("Time: ");
     Serial.print(currentTime);
-    Serial.print("   Temperature: "); Serial.println(input);
+    Serial.print(" Temperature: "); Serial.print(input);
+    Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+    Serial.print(" cycle "); Serial.println(cycleCount);
 
     // Serial.print("Base: "); Serial.println(temp_PT100);
     // Serial.print("Rawdata: "); Serial.println(Rawdata);

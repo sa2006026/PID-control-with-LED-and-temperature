@@ -6,8 +6,9 @@ ser = serial.Serial('COM3', 9600, timeout=1)
 time.sleep(2)  # Wait for connection to establish
 
  # Open a text file for writing data
-with open("20ul_cuvette_holder_v1.txt", "w") as file:
+with open("20uldroplet_100um.txt", "w") as file:
     try:
+
         while True:
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8').rstrip()
@@ -17,3 +18,6 @@ with open("20ul_cuvette_holder_v1.txt", "w") as file:
     except KeyboardInterrupt:
         print("Data collection stopped")
         ser.close()  # Close the serial connection when done
+
+
+
