@@ -275,7 +275,7 @@ void loop() {
     ledBrightness = constrain((int)output, 0, 255);
     analogWrite(led, ledBrightness);
     
-    // analogWrite(led, 30); //Test Focus
+    // analogWrite(led, 255); //Test Focus
     // analogWrite(led2, ledBrightness);
 
     // Debugging prints
