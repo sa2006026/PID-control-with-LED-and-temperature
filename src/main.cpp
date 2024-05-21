@@ -1,42 +1,8 @@
-#include <Arduino.h>
+#include "config.h"
 #include "AD7793.h"
 #include "Communication.h"
 #include "SPI.h"
 #include <math.h>
-
-// Temperature sensor variables and constants
-float Vref;
-float GAIN;
-float RREF = 402.0;
-float RRTD;
-float temp_PT100;
-float R0 = 100.0;
-float Voltage_therm;
-float tempfinal;
-float Rawdata;
-// PID parameters
-float Kp = 5.0;     // Proportional gain
-float Ki = 1;       // Integral gain
-float Kd = 1.0;     // Derivative gain
-
-float setpoint = 100.0;
-float input, output, lastInput;
-float iTerm, dInput;
-
-// LED control variables
-int led = 6;
-int led2 = 5;
-int ledBrightness = 0;
-
-int i = 0;
-// Thermocycle control constants
-const float UpperTemperatureThreshold = 30.0;
-const float LowerTemperatureThreshold = 27.0;
-bool increasingTemperature = true;
-
-unsigned long previousMillis = 0;
-const long interval = 500;
-
 
 // Function to read temperature from the sensor
 float Get_Thermocouple_init(){
@@ -173,95 +139,105 @@ float Get_Thermocouple(){
   return temp;
 }
 
+void handleThermocyclingAndPID() {
+    unsigned long currentTime = millis();
+    if (cycleCount < TotalCycles * 2 - 1) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
+            setpoint = LowerTemperatureThreshold;
+            analogWrite(fan, 255); // Turn fan on to cool down
+            cycleCount++;
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
+            setpoint = UpperTemperatureThreshold;
+            analogWrite(fan, 0); // Turn fan off to heat up
+            cycleCount++;
+        }
+        // Calculate PID
+        error = setpoint - input;
+        iTerm += (Ki * error);
+        // Prevent integral windup
+        iTerm = constrain(iTerm, 0, 255);
+        dInput = (input - lastInput);
+        lastInput = input; // Update last input for next iteration
+
+        // Compute PID Output
+        output = Kp * error + iTerm - Kd * dInput;
+        ledBrightness = constrain(static_cast<int>(output), 0, 255);
+        analogWrite(led, ledBrightness);
+
+        // Debugging prints
+        Serial.print("Time: "); Serial.print(currentTime);
+        Serial.print(" Temperature: "); Serial.print(input);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.println(cycleCount);
+
+        // Minimal delay for stability
+        delay(1);
+    }
+}
+
+void handleThermocycling() {
+    unsigned long currentTime = millis();
+    if (cycleCount < TotalCycles * 2 - 1) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
+            setpoint = LowerTemperatureThreshold;
+            analogWrite(fan, 255); // Turn fan on to cool down
+            analogWrite(led,0);
+            cycleCount++;
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
+            setpoint = UpperTemperatureThreshold;
+            analogWrite(fan, 0); // Turn fan off to heat up
+            analogWrite(led,255);
+            cycleCount++;
+        }
+
+        // Debugging prints
+        Serial.print("Time: "); Serial.print(currentTime);
+        Serial.print(" Temperature: "); Serial.print(input);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.println(cycleCount);
+
+        // Minimal delay for stability
+        delay(1);
+    }
+}
+
+void TuneFocus() {
+    analogWrite(led, 20);
+}
+
+
+void ReadTemperature() {
+    // Fetch raw data from the sensor
+    Rawdata = Get_RawData();
+    
+    // Convert raw data to a signed integer
+    DataT1 = (Rawdata - 0x800000);
+
+    // Calculate voltage based on reference voltage and gain
+    Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
+    Voltage *= 27910.611650905546;
+    Voltage /= 32;
+
+    // Update the global 'input' variable by adding the PT100 temperature
+    input = Voltage + temp_PT100;
+}
+
+void ThermocoupleSetup(){
+    AD7793_Init();
+    temp_PT100 = Get_PT100_init();
+    Voltage_therm = Get_Thermocouple_init();
+}
+
 void setup() {
     Serial.begin(9600);
     pinMode(led, OUTPUT);
-    // Initialize temperature sensor
-    AD7793_Init();
-
-    temp_PT100 = Get_PT100_init();
-    Voltage_therm = Get_Thermocouple_init();
-
-    Serial.print("PT100: "); Serial.println(temp_PT100);
-
-    // lastInput = Get_PT100_init() + Get_Thermocouple_init();
+    ThermocoupleSetup();
 }
 
 void loop() {
-    //Read current temperature
-      // temp_PT100 = Get_PT100();
-      // Voltage_therm = Get_Thermocouple_init();
-      unsigned long currentTime = millis();
-      int32_t DataT1;
-      float Voltage;
-      float Vref = 1.17;
 
-      temp_PT100 = Get_PT100_init();
-      Rawdata = Get_RawData();
-      DataT1 = (Rawdata - 0x800000);
-      Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
-      Voltage *= 27910.611650905546;
-      Voltage /= 32;
-      input = Voltage + temp_PT100;
-      
-      // input =  temp_PT100 + Voltage_therm; //get temperature
-      // input = Rawdata;
-      
-    // temp_PT100 = Get_PT100();
-    // Voltage_therm = Get_Thermocouple();
-    //input = temp_PT100 + Voltage_therm;
-
-    // Thermocycle logic
-    // if (increasingTemperature) {
-    //     if (input >= UpperTemperatureThreshold) {
-    //         increasingTemperature = false;
-    //         setpoint = LowerTemperatureThreshold;
-    //     } else {
-    //         setpoint = UpperTemperatureThreshold;
-    //     }
-    // } else {
-    //     if (input <= LowerTemperatureThreshold) {
-    //         increasingTemperature = true;
-    //         setpoint = UpperTemperatureThreshold;
-    //     } else {
-    //         setpoint = LowerTemperatureThreshold;
-    //     }
-    // }
-
-    // // Calculate PID
-    // float error = setpoint - input;
-    // iTerm += (Ki * error);
-    // iTerm = constrain(iTerm, 0, 255);
-
-    // dInput = (input - lastInput);
-
-    // // Compute PID output
-    // output = Kp * error + iTerm - Kd * dInput;
-
-    // // Adjust LED brightness based on PID output
-    // if (increasingTemperature) {
-    //     ledBrightness = constrain((int)output, 0, 255);
-    // } else {
-    //     ledBrightness = 255 - constrain((int)output, 0, 255);
-    // }
-     analogWrite(led, 50);
-     analogWrite(led2, 50);
-
-    // Debugging prints
-    Serial.print("Time: ");
-    Serial.print(currentTime);
-    Serial.print("   Temperature: "); Serial.println(input);
-
-    // Serial.print("Base: "); Serial.println(temp_PT100);
-    // Serial.print("Rawdata: "); Serial.println(Rawdata);
-
-    // Serial.print("Setpoint: "); Serial.println(setpoint);
-    // Serial.print("PID Output: "); Serial.println(output);
-    // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
-
-    // Add a delay for stability
-    delay(1);
-
-    // Update lastInput for next iteration
-    // lastInput = input;
+    ReadTemperature();              //Using thermocouple to read temperature
+    //TuneFocus();                  //Use small power of led for focus
+    handleThermocyclingAndPID();   //Go through 30 thermocycles and do PID
+    //handleThermocycling();        //Go through 30 thermocycles without PID
 }
