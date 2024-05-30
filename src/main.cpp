@@ -1,3 +1,23 @@
+/*
+ * Thermocouple and PT100 Temperature Measurement
+ * Description:
+ *  This program interfaces with the AD7793 ADC to read temperatures from a thermocouple and a PT100 sensor. It includes functionalities
+ *  for initializing the device, reading data, and handling temperature control cycles with PID regulation.
+ *
+ * Dependencies:
+ *  - AD7793.h: Manages interactions with the AD7793 ADC.
+ *  - SPI.h: Required for SPI communication.
+ *  - config.h: Contains configuration constants and settings.
+ *  - Communication.h: Handles communication functionalities.
+ *  - math.h: Provides access to mathematical functions for data processing.
+ *
+ * Hardware:
+ *  - Any compatible Arduino board connected to AD7793 and the appropriate temperature sensors.
+ *
+ * Date: [30/5/2024]
+ */
+
+
 #include "config.h"
 #include "AD7793.h"
 #include "Communication.h"
@@ -139,13 +159,17 @@ float Get_Thermocouple(){
   return temp;
 }
 
-void handleThermocyclingAndPID() {
+/**
+ * Manages thermocycling process and applies PID control to maintain temperature within defined thresholds.
+ * This function controls a heating and cooling cycle based on set temperature thresholds and uses PID control 
+ * to maintain temperature stability.
+ */
+void handleThermocyclingAndPID() {                           
     unsigned long currentTime = millis();
-    if (cycleCount < TotalCycles * 2 - 1) {
+    if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
             analogWrite(fan, 255); // Turn fan on to cool down
-            cycleCount++;
         } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
             setpoint = UpperTemperatureThreshold;
             analogWrite(fan, 0); // Turn fan off to heat up
@@ -175,9 +199,15 @@ void handleThermocyclingAndPID() {
     }
 }
 
+
+/**
+ * Manages basic thermocycling without PID control.
+ * This function alternates between high and low temperature thresholds to cycle the temperature control,
+ * directly manipulating the hardware components like fans and LEDs to indicate state changes.
+ */
 void handleThermocycling() {
     unsigned long currentTime = millis();
-    if (cycleCount < TotalCycles * 2 - 1) {
+    if (cycleCount < TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
             analogWrite(fan, 255); // Turn fan on to cool down
@@ -187,9 +217,7 @@ void handleThermocycling() {
             setpoint = UpperTemperatureThreshold;
             analogWrite(fan, 0); // Turn fan off to heat up
             analogWrite(led,255);
-            cycleCount++;
         }
-
         // Debugging prints
         Serial.print("Time: "); Serial.print(currentTime);
         Serial.print(" Temperature: "); Serial.print(input);
@@ -201,11 +229,20 @@ void handleThermocycling() {
     }
 }
 
+/**
+ * Sets LED brightness to a low level for tunning focus
+ */
 void TuneFocus() {
     analogWrite(led, 20);
 }
 
-
+/**
+ * Reads and processes temperature data from sensors, updating system's main input variable.
+ * Fetches raw sensor data, converts it to a useful voltage representation, and updates the global input variable.
+ *
+ Fetches raw data using the Get_RawData function, converts this raw data to a voltage based on system gain and reference voltage,
+ and updates the global input variable for use in system control algorithms.
+ */
 void ReadTemperature() {
     // Fetch raw data from the sensor
     Rawdata = Get_RawData();
@@ -222,12 +259,19 @@ void ReadTemperature() {
     input = Voltage + temp_PT100;
 }
 
+/**
+ * Performs initialization of the ADC used for thermocouple and PT100 sensors, including calibration and sensor selection.
+ */
 void ThermocoupleSetup(){
     AD7793_Init();
     temp_PT100 = Get_PT100_init();
     Voltage_therm = Get_Thermocouple_init();
 }
 
+/**
+ * Performs initial setup of the Arduino board and associated sensors.
+ * Initializes serial communication, configures pin settings, and prepares the thermocouple system.
+ */
 void setup() {
     Serial.begin(9600);
     pinMode(led, OUTPUT);
