@@ -23,9 +23,9 @@ float iTerm, lastInput = 0;
 float dInput, error;
 
 // LED control variables
-int led = 5;                //led pin
+int led = 2;                //led pin
 int ledBrightness = 0;      //led pwm control (0-255)
-int fan = 3;                //fan pin
+int fan = 5;                //fan pin
 
 
 // Thermocycle control constants

@@ -233,7 +233,7 @@ void handleThermocycling() {
  * Sets LED brightness to a low level for tunning focus
  */
 void TuneFocus() {
-    analogWrite(led, 20);
+    analogWrite(led, 255);
 }
 
 /**
@@ -275,13 +275,14 @@ void ThermocoupleSetup(){
 void setup() {
     Serial.begin(9600);
     pinMode(led, OUTPUT);
-    ThermocoupleSetup();
+    //ThermocoupleSetup();
 }
 
 void loop() {
 
-    ReadTemperature();              //Using thermocouple to read temperature
-    //TuneFocus();                  //Use small power of led for focus
-    handleThermocyclingAndPID();   //Go through 30 thermocycles and do PID
+    //ReadTemperature();              //Using thermocouple to read temperature
+    TuneFocus();
+    Serial.print("1");                                   //Use small power of led for focus
+    //handleThermocyclingAndPID();   //Go through 30 thermocycles and do PID
     //handleThermocycling();        //Go through 30 thermocycles without PID
 }
