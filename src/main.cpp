@@ -1,48 +1,28 @@
-#include <Arduino.h>
+/*
+ * Thermocouple and PT100 Temperature Measurement
+ * Description:
+ *  This program interfaces with the AD7793 ADC to read temperatures from a thermocouple and a PT100 sensor. It includes functionalities
+ *  for initializing the device, reading data, and handling temperature control cycles with PID regulation.
+ *
+ * Dependencies:
+ *  - AD7793.h: Manages interactions with the AD7793 ADC.
+ *  - SPI.h: Required for SPI communication.
+ *  - config.h: Contains configuration constants and settings.
+ *  - Communication.h: Handles communication functionalities.
+ *  - math.h: Provides access to mathematical functions for data processing.
+ *
+ * Hardware:
+ *  - Any compatible Arduino board connected to AD7793 and the appropriate temperature sensors.
+ *
+ * Date: [30/5/2024]
+ */
+
+
+#include "config.h"
 #include "AD7793.h"
 #include "Communication.h"
 #include "SPI.h"
 #include <math.h>
-
-// Temperature sensor variables and constants
-float Vref;
-float GAIN;
-float RREF = 402.0;
-float RRTD;
-float temp_PT100;
-float R0 = 100.0;
-float Voltage_therm;
-float tempfinal;
-float Rawdata;
-// PID parameters
-float Kp = 5.0;     // Proportional gain
-float Ki = 1;       // Integral gain
-float Kd = 1.0;     // Derivative gain
-
-float setpoint = 95; // Initial setpoint, halfway for demonstration
-float input, output;
-float iTerm, lastInput = 0;
-float dInput, error;
-
-// LED control variables
-int led = 5;
-int led2 = 3;
-int ledBrightness = 0;
-
-int fan = 3;
-int fan2 = 10;
-
-// Thermocycle control constants
-const float UpperTemperatureThreshold = 95;
-const float LowerTemperatureThreshold = 60;
-
-
-int cycleCount = 0;
-const int TotalCycles = 30; // Target cycle count
-
-unsigned long previousMillis = 0;
-const long interval = 500;
-
 
 // Function to read temperature from the sensor
 float Get_Thermocouple_init(){
@@ -179,125 +159,130 @@ float Get_Thermocouple(){
   return temp;
 }
 
-void setup() {
-    Serial.begin(9600);
-    pinMode(led, OUTPUT);
-    // Initialize temperature sensor
-    AD7793_Init();
-
-    temp_PT100 = Get_PT100_init();
-    Voltage_therm = Get_Thermocouple_init();
-
-    Serial.print("PT100: "); Serial.println(temp_PT100);
-
-    // lastInput = Get_PT100_init() + Get_Thermocouple_init();
-}
-
-void loop() {
-    //Read current temperature
-      // temp_PT100 = Get_PT100();
-      // Voltage_therm = Get_Thermocouple_init();
-      unsigned long currentTime = millis();
-      int32_t DataT1;
-      float Voltage;
-      float Vref = 1.17;
-
-      
-      Rawdata = Get_RawData();
-      DataT1 = (Rawdata - 0x800000);
-      Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
-      Voltage *= 27910.611650905546;
-      Voltage /= 32;
-      input = Voltage + temp_PT100;
-      
-      // input =  temp_PT100 + Voltage_therm; //get temperature
-      // input = Rawdata;
-      
-    // temp_PT100 = Get_PT100();
-    // Voltage_therm = Get_Thermocouple();
-    //input = temp_PT100 + Voltage_therm;
-
-    // Thermocycle logic
-    // if (increasingTemperature) {
-    //     if (input >= UpperTemperatureThreshold) {
-    //         increasingTemperature = false;
-    //         setpoint = LowerTemperatureThreshold;
-    //     } else {
-    //         setpoint = UpperTemperatureThreshold;
-    //     }
-    // } else {
-    //     if (input <= LowerTemperatureThreshold) {
-    //         increasingTemperature = true;
-    //         setpoint = UpperTemperatureThreshold;
-    //     } else {
-    //         setpoint = LowerTemperatureThreshold;
-    //     }
-    // }
-
-    // // Calculate PID
-    // float error = setpoint - input;
-    // iTerm += (Ki * error);
-    // iTerm = constrain(iTerm, 0, 255);
-
-    // dInput = (input - lastInput);
-
-    // // Compute PID output
-    // output = Kp * error + iTerm - Kd * dInput;
-
-    // // Adjust LED brightness based on PID output
-    // if (increasingTemperature) {
-    //     ledBrightness = constrain((int)output, 0, 255);
-    // } else {
-    //     ledBrightness = 255 - constrain((int)output, 0, 255);
-    // }
-    
-    if (cycleCount < TotalCycles * 2 -1) {
+/**
+ * Manages thermocycling process and applies PID control to maintain temperature within defined thresholds.
+ * This function controls a heating and cooling cycle based on set temperature thresholds and uses PID control 
+ * to maintain temperature stability.
+ */
+void handleThermocyclingAndPID() {                           
+    unsigned long currentTime = millis();
+    if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
-            analogWrite(led2, 255);
-            
+            analogWrite(fan, 255); // Turn fan on to cool down
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
+            setpoint = UpperTemperatureThreshold;
+            analogWrite(fan, 0); // Turn fan off to heat up
+            cycleCount++;
+        }
+        // Calculate PID
+        error = setpoint - input;
+        iTerm += (Ki * error);
+        // Prevent integral windup
+        iTerm = constrain(iTerm, 0, 255);
+        dInput = (input - lastInput);
+        lastInput = input; // Update last input for next iteration
+
+        // Compute PID Output
+        output = Kp * error + iTerm - Kd * dInput;
+        ledBrightness = constrain(static_cast<int>(output), 0, 255);
+        analogWrite(led, ledBrightness);
+
+        // Debugging prints
+        Serial.print("Time: "); Serial.print(currentTime);
+        Serial.print(" Temperature: "); Serial.print(input);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.println(cycleCount);
+
+        // Minimal delay for stability
+        delay(1);
+    }
+}
+
+
+/**
+ * Manages basic thermocycling without PID control.
+ * This function alternates between high and low temperature thresholds to cycle the temperature control,
+ * directly manipulating the hardware components like fans and LEDs to indicate state changes.
+ */
+void handleThermocycling() {
+    unsigned long currentTime = millis();
+    if (cycleCount < TotalCycles) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
+            setpoint = LowerTemperatureThreshold;
+            analogWrite(fan, 255); // Turn fan on to cool down
+            analogWrite(led,0);
             cycleCount++;
         } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
             setpoint = UpperTemperatureThreshold;
-            analogWrite(led2, 0);
-            
-            cycleCount++;
+            analogWrite(fan, 0); // Turn fan off to heat up
+            analogWrite(led,255);
         }
+        // Debugging prints
+        Serial.print("Time: "); Serial.print(currentTime);
+        Serial.print(" Temperature: "); Serial.print(input);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.println(cycleCount);
+
+        // Minimal delay for stability
+        delay(1);
     }
+}
 
-    //Calculate PID
-    error = setpoint - input;
-    iTerm += (Ki * error);
-    // Prevent integral windup
-    iTerm = constrain(iTerm, 0, 255);
-    dInput = (input - lastInput);
+/**
+ * Sets LED brightness to a low level for tunning focus
+ */
+void TuneFocus() {
+    analogWrite(led, 100);
+}
 
-    // Compute PID Output
-    output = Kp * error + iTerm - Kd * dInput;
-    ledBrightness = constrain((int)output, 0, 255);
-    analogWrite(led, ledBrightness);
+/**
+ * Reads and processes temperature data from sensors, updating system's main input variable.
+ * Fetches raw sensor data, converts it to a useful voltage representation, and updates the global input variable.
+ *
+ Fetches raw data using the Get_RawData function, converts this raw data to a voltage based on system gain and reference voltage,
+ and updates the global input variable for use in system control algorithms.
+ */
+void ReadTemperature() {
+    // Fetch raw data from the sensor
+    Rawdata = Get_RawData();
     
-    // analogWrite(led, 255); //Test Focus
-    // analogWrite(led2, ledBrightness);
+    // Convert raw data to a signed integer
+    DataT1 = (Rawdata - 0x800000);
 
-    // Debugging prints
-    Serial.print("Time: ");
-    Serial.print(currentTime);
-    Serial.print(" Temperature: "); Serial.print(input);
-    Serial.print(" PIDoutput "); Serial.print(ledBrightness);
-    Serial.print(" cycle "); Serial.println(cycleCount);
-    // analogWrite(led2, 255);
+    // Calculate voltage based on reference voltage and gain
+    Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
+    Voltage *= 27910.611650905546;
+    Voltage /= 32;
 
-    // Serial.print("Base: "); Serial.println(temp_PT100);
-    // Serial.print("Rawdata: "); Serial.println(Rawdata);
+    // Update the global 'input' variable by adding the PT100 temperature
+    input = Voltage + temp_PT100;
+}
 
-    // Serial.print("Setpoint: "); Serial.println(setpoint);
-    // Serial.print("PID Output: "); Serial.println(output);
-    // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
+/**
+ * Performs initialization of the ADC used for thermocouple and PT100 sensors, including calibration and sensor selection.
+ */
+void ThermocoupleSetup(){
+    AD7793_Init();
+    temp_PT100 = Get_PT100_init();
+    Voltage_therm = Get_Thermocouple_init();
+}
 
-    // Add a delay for stability
-    delay(1);
+/**
+ * Performs initial setup of the Arduino board and associated sensors.
+ * Initializes serial communication, configures pin settings, and prepares the thermocouple system.
+ */
+void setup() {
+    Serial.begin(9600);
+    pinMode(led, OUTPUT);
+    //ThermocoupleSetup();
+}
 
-    // Update lastInput for next iteration
-    // lastInput = input;
+void loop() {
+
+    //ReadTemperature();              //Using thermocouple to read temperature
+    TuneFocus();
+    Serial.print(led);                                   //Use small power of led for focus
+    //handleThermocyclingAndPID();   //Go through 30 thermocycles and do PID
+    //handleThermocycling();        //Go through 30 thermocycles without PID
 }

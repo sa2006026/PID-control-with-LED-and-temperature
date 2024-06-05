@@ -13,37 +13,44 @@ float temp_PT100;
 float R0 = 100.0;
 float Voltage_therm;
 float tempfinal;
-
+float Rawdata;
 // PID parameters
 float Kp = 5.0;     // Proportional gain
 float Ki = 1;       // Integral gain
 float Kd = 1.0;     // Derivative gain
 
-float setpoint = 100.0;
-float input, output, lastInput;
-float iTerm, dInput;
+float setpoint = 95; // Initial setpoint, halfway for demonstration
+float input, output;
+float iTerm, lastInput = 0;
+float dInput, error;
 
 // LED control variables
-int led = 6;
+int led = 5;
+int led2 = 3;
 int ledBrightness = 0;
 
+int fan = 3;
+int fan2 = 10;
+
 // Thermocycle control constants
-const float UpperTemperatureThreshold = 30.0;
-const float LowerTemperatureThreshold = 27.0;
-bool increasingTemperature = true;
+const float UpperTemperatureThreshold = 95;
+const float LowerTemperatureThreshold = 60;
+
+
+int cycleCount = 0;
+const int TotalCycles = 30; // Target cycle count
 
 unsigned long previousMillis = 0;
 const long interval = 500;
 
 
 // Function to read temperature from the sensor
-float Get_Thermocouple(){
-
+float Get_Thermocouple_init(){
   uint32_t conv_therm;
   int32_t DataT1;
   float Voltage;
   
-  AD7793_Reset(); /* Sends 32 consecutive 1's on SPI in order to reset  the part */  
+  AD7793_Reset(); /* Sends 32 consecutive on SPI in order to reset  the part */  
   // delay(100);     
   AD7793_SetChannel(AD7793_CH_AIN1P_AIN1M); /* Selects channel  2 of AD7793 */
   AD7793_SetGain(AD7793_GAIN_32); /* Sets the gain to 1 */
@@ -58,7 +65,6 @@ float Get_Thermocouple(){
   AD7793_Calibrate(AD7793_MODE_CAL_INT_ZERO, AD7793_CH_AIN1P_AIN1M);  /* Performs Internal Zero calibration to the specified channel. */
   AD7793_Calibrate(AD7793_MODE_CAL_INT_FULL,  AD7793_CH_AIN1P_AIN1M); /* Performs Internal Full Calibration to the specified channel.  */
 
-  
   //AD7793_SetExcitDirection(AD7793_DIR_IEXC1_IEXC2_IOUT1);  /*Sets the direction of the internal excitation current source */
 
   AD7793_SetMode(AD7793_MODE_CONT);  /* Continuous Conversion Mode */
@@ -75,12 +81,48 @@ float Get_Thermocouple(){
   return Voltage;
 }
 
-float Get_PT100(){
+float Get_RawData(){
+  uint32_t conv_therm;
+  int32_t DataT1;
+  float Voltage;
+  
+  AD7793_Reset(); /* Sends 32 consecutive on SPI in order to reset  the part */  
+  // delay(100);     
+  AD7793_SetChannel(AD7793_CH_AIN1P_AIN1M); /* Selects channel  2 of AD7793 */
+  AD7793_SetGain(AD7793_GAIN_32); /* Sets the gain to 1 */
+  AD7793_SetIntReference(AD7793_REFSEL_INT); /* Sets the reference source for  the ADC.*/
+  AD7793_DisableBipolar();/* Sets to the bipolar mode*/
+  // Bipolar mode + Internal reference voltage + Gain 1 --> input analog voltage range: -1.17 ~ +1.17 V, corresponding to value range: 0x000000 ~ 0xffffff
+
+  float Vref = 1.17;  /* This is the internal reference voltage provided by the AD7793, expressed in volt  */
+  GAIN = 32.0; 
+
+  /* As the gain of the internal  instrumentation amplifier has been changed, Analog Devices recommends performing  a calibration  */
+  AD7793_Calibrate(AD7793_MODE_CAL_INT_ZERO, AD7793_CH_AIN1P_AIN1M);  /* Performs Internal Zero calibration to the specified channel. */
+  AD7793_Calibrate(AD7793_MODE_CAL_INT_FULL,  AD7793_CH_AIN1P_AIN1M); /* Performs Internal Full Calibration to the specified channel.  */
+
+  //AD7793_SetExcitDirection(AD7793_DIR_IEXC1_IEXC2_IOUT1);  /*Sets the direction of the internal excitation current source */
+
+  AD7793_SetMode(AD7793_MODE_CONT);  /* Continuous Conversion Mode */
+  AD7793_SetClockSource(AD7793_CLK_INT_CO); /* Internal 64 kHz Clk available at the CLK pin */
+  AD7793_SetFilterUpdateRate(AD7793_MODE_RATE(0xB));/* Filter update rate 12.5 Hz */
+  //AD7793_SetExcitCurrent(AD7793_EN_IXCEN_210uA);/*  Sets the current of the AD7793 internal excitation current source */
+  delay(200);
+
+  conv_therm = AD7793_ContinuousSingleRead();
+  DataT1 = (conv_therm - 0x800000);
+  Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
+  Voltage *= 24937.65586;
+  Voltage /= 32;
+  return conv_therm;
+}
+
+float Get_PT100_init(){
 
   uint32_t conv_PT100;
   float temp;
   
-  AD7793_Reset(); /* Sends 32 consecutive 1's on SPI in order to reset  the part */  
+  AD7793_Reset(); /* Sends 32 consecutive on SPI in order to reset  the part */  
   // delay(100);     
   AD7793_SetChannel(AD7793_CH_AIN2P_AIN2M); /* Selects channel  2 of AD7793 */
   AD7793_SetGain(AD7793_GAIN_1); /* Sets the gain to 1 */
@@ -104,6 +146,25 @@ float Get_PT100(){
   AD7793_SetExcitCurrent(AD7793_EN_IXCEN_210uA);/*  Sets the current of the AD7793 internal excitation current source */
   delay(200);
 
+  conv_PT100 = AD7793_ContinuousSingleRead();
+  conv_PT100 = conv_PT100 - 0x800000;
+  //Serial.print(conv);
+  //Serial.print("\n");
+  RRTD = RREF * conv_PT100 / 0x7fffff; /* Computes the RTD resistance from the conversion  code */
+  //Serial.print(RRTD);
+  //Serial.print("\n");
+  temp = (RRTD-100)/0.400574;    /* Callender-Van  Dusen equation temp > 0C */
+  //Serial.println(temp);
+  //delay(1000);
+  return temp;
+}
+
+float Get_Thermocouple(){
+  uint32_t conv_PT100;
+  float temp;
+  
+  Vref = 1.17;  /* This is the internal reference voltage provided by the AD7793, expressed in volt  */
+  GAIN = 1.0; 
 
   conv_PT100 = AD7793_ContinuousSingleRead();
   conv_PT100 = conv_PT100 - 0x800000;
@@ -121,69 +182,72 @@ float Get_PT100(){
 void setup() {
     Serial.begin(9600);
     pinMode(led, OUTPUT);
-
     // Initialize temperature sensor
     AD7793_Init();
-    lastInput = Get_PT100() + Get_Thermocouple();
+
+    temp_PT100 = Get_PT100_init();
+    Voltage_therm = Get_Thermocouple_init();
+
+    Serial.print("PT100: "); Serial.println(temp_PT100);
+
+    // lastInput = Get_PT100_init() + Get_Thermocouple_init();
 }
 
 void loop() {
     //Read current temperature
-    
-      temp_PT100 = Get_PT100();
-      Voltage_therm = Get_Thermocouple();
-      input = temp_PT100 + Voltage_therm ;
-    
-    // temp_PT100 = Get_PT100();
-    // Voltage_therm = Get_Thermocouple();
-    //input = temp_PT100 + Voltage_therm;
+      // temp_PT100 = Get_PT100();
+      // Voltage_therm = Get_Thermocouple_init();
+      unsigned long currentTime = millis();
+      int32_t DataT1;
+      float Voltage;
+      float Vref = 1.17;
 
-   
-    // Thermocycle logic
-    if (increasingTemperature) {
-        if (input >= UpperTemperatureThreshold) {
-            increasingTemperature = false;
+      
+      Rawdata = Get_RawData();
+      DataT1 = (Rawdata - 0x800000);
+      Voltage = DataT1 * 2 * Vref / 0xFFFFFF;
+      Voltage *= 27910.611650905546;
+      Voltage /= 32;
+      input = Voltage + temp_PT100;
+      
+    
+    if (cycleCount < TotalCycles * 2 -1) {
+        if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
-        } else {
+            analogWrite(led2, 255);
+            
+            cycleCount++;
+        } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
             setpoint = UpperTemperatureThreshold;
+            analogWrite(led2, 0);
+            
+            cycleCount++;
         }
-    } else {
-        if (input <= LowerTemperatureThreshold) {
-            increasingTemperature = true;
-            setpoint = UpperTemperatureThreshold;
-        } else {
-            setpoint = LowerTemperatureThreshold;
-        }
+        
     }
 
-    // Calculate PID
-    float error = setpoint - input;
+    //Calculate PID
+    error = setpoint - input;
     iTerm += (Ki * error);
+    // Prevent integral windup
     iTerm = constrain(iTerm, 0, 255);
-
     dInput = (input - lastInput);
 
-    // Compute PID output
+    // Compute PID Output
     output = Kp * error + iTerm - Kd * dInput;
-
-    // Adjust LED brightness based on PID output
-    if (increasingTemperature) {
-        ledBrightness = constrain((int)output, 0, 255);
-    } else {
-        ledBrightness = 255 - constrain((int)output, 0, 255);
-    }
+    ledBrightness = constrain((int)output, 0, 255);
     analogWrite(led, ledBrightness);
+    
 
     // Debugging prints
-    Serial.print("Temperature: "); Serial.println(input);
-
-    // Serial.print("Setpoint: "); Serial.println(setpoint);
-    // Serial.print("PID Output: "); Serial.println(output);
-    // Serial.print("LED Brightness: "); Serial.println(ledBrightness);
+    Serial.print("Time: ");
+    Serial.print(currentTime);
+    Serial.print(" Temperature: "); Serial.print(input);
+    Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+    Serial.print(" cycle "); Serial.println(cycleCount);
+    // analogWrite(led2, 255);
 
     // Add a delay for stability
     delay(1);
 
-    // Update lastInput for next iteration
-    lastInput = input;
 }
