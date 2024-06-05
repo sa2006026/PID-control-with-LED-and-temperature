@@ -6,7 +6,7 @@ ser = serial.Serial('COM3', 9600, timeout=1)
 time.sleep(2)  # Wait for connection to establish
 
  # Open a text file for writing data
-with open("20uldroplet_108um_20W.txt", "w") as file:
+with open("20ul_pcr.txt_2", "w") as file:
     try:
         while True:
             if ser.in_waiting > 0:

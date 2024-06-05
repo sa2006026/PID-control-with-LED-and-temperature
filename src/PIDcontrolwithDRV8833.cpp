@@ -255,15 +255,17 @@ void loop() {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
             analogWrite(led2, 255);
+            
             cycleCount++;
         } else if (setpoint == LowerTemperatureThreshold && input <= LowerTemperatureThreshold + 1) {
             setpoint = UpperTemperatureThreshold;
             analogWrite(led2, 0);
+            
             cycleCount++;
         }
     }
 
-    // Calculate PID
+    //Calculate PID
     error = setpoint - input;
     iTerm += (Ki * error);
     // Prevent integral windup
@@ -284,6 +286,7 @@ void loop() {
     Serial.print(" Temperature: "); Serial.print(input);
     Serial.print(" PIDoutput "); Serial.print(ledBrightness);
     Serial.print(" cycle "); Serial.println(cycleCount);
+    // analogWrite(led2, 255);
 
     // Serial.print("Base: "); Serial.println(temp_PT100);
     // Serial.print("Rawdata: "); Serial.println(Rawdata);
