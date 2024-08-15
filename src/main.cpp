@@ -246,7 +246,6 @@ void TuneFocus() {
 void ReadTemperature() {
     // Fetch raw data from the sensor
     Rawdata = Get_RawData();
-    
     // Convert raw data to a signed integer
     DataT1 = (Rawdata - 0x800000);
 
@@ -275,14 +274,15 @@ void ThermocoupleSetup(){
 void setup() {
     Serial.begin(9600);
     pinMode(led, OUTPUT);
-    //ThermocoupleSetup();
+    pinMode(fan, OUTPUT);
+    ThermocoupleSetup();
 }
 
 void loop() {
-
+    analogWrite(fan, 255);
     //ReadTemperature();              //Using thermocouple to read temperature
-    TuneFocus();
-    Serial.print(led);                                   //Use small power of led for focus
+    //TuneFocus();
+    //Serial.print(led);                                   //Use small power of led for focus
     //handleThermocyclingAndPID();   //Go through 30 thermocycles and do PID
     //handleThermocycling();        //Go through 30 thermocycles without PID
 }
