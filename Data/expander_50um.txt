@@ -819,7 +819,7 @@ Time: 166209 Temperature: 33.54 PIDoutput 0 cycle 7
 Time: 166412 Temperature: 33.66 PIDoutput 0 cycle 7
 Time: 166615 Temperature: 33.78 PIDoutput 0 cycle 7
 Time: 166817 Temperature: 33.89 PIDoutput 0 cycle 7
-Time: 167020 Temperature: 34.01 PIDoutput 0 cycle 8
+Time: 167020 Temperature: 34.01 PIDoutput 0 cycle 8346
 Time: 167223 Temperature: 34.07 PIDoutput 0 cycle 8
 Time: 167426 Temperature: 34.03 PIDoutput 0 cycle 8
 Time: 167628 Temperature: 33.96 PIDoutput 0 cycle 8

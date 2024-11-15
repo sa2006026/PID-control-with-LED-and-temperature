@@ -553,7 +553,7 @@ Time: 158100 Temperature: 33.63 PIDoutput 0 cycle 6
 Time: 158303 Temperature: 33.72 PIDoutput 0 cycle 6
 Time: 158505 Temperature: 33.81 PIDoutput 0 cycle 6
 Time: 158708 Temperature: 33.91 PIDoutput 0 cycle 6
-Time: 158911 Temperature: 34.00 PIDoutput 0 cycle 7
+Time: 158911 Temperature: 34.00 PIDoutput 0 cycle 73.852
 Time: 159114 Temperature: 34.04 PIDoutput 0 cycle 7
 Time: 159316 Temperature: 33.97 PIDoutput 0 cycle 7
 Time: 159519 Temperature: 33.90 PIDoutput 0 cycle 7

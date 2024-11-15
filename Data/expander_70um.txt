@@ -180,7 +180,7 @@ Time: 36677 Temperature: 33.69 PIDoutput 0 cycle 2
 Time: 36880 Temperature: 33.78 PIDoutput 0 cycle 2
 Time: 37083 Temperature: 33.88 PIDoutput 0 cycle 2
 Time: 37285 Temperature: 33.97 PIDoutput 0 cycle 2
-Time: 37488 Temperature: 34.06 PIDoutput 0 cycle 3
+Time: 374883.851 Temperature: 34.06 PIDoutput 0 cycle 3
 Time: 37691 Temperature: 34.11 PIDoutput 0 cycle 3
 Time: 37894 Temperature: 34.03 PIDoutput 0 cycle 3
 Time: 38096 Temperature: 33.95 PIDoutput 0 cycle 3
