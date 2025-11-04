@@ -18,7 +18,7 @@ float tempfinal;
 float Rawdata;
 
 // PID parameters
-float Kp = 40.0;  
+float Kp = 50.0;  
 float Ki = 0.1;  
 float Kd = 0.1;  
 
@@ -47,11 +47,11 @@ unsigned long phaseStartTime = 0;
 float  tempPhase2, tempPhase3, tempPhase4, tempPhase5;
 int  holdTimePhase2, holdTimePhase3, holdTimePhase4, holdTimePhase5;
 
-float  tempPhase1;
-float  holdTimePhase1;
+float  tempPhase1 = 95;
+float  holdTimePhase1 = 240000;
 
-float UpperTemperatureThreshold;
-float LowerTemperatureThreshold;
+const float UpperTemperatureThreshold = 95;
+const float LowerTemperatureThreshold = 60;
 
 bool receivedData = false;  // Flag to track data reception
 
@@ -59,6 +59,7 @@ enum ThermoCyclingPhase {
     INITIAL_DENATURATION,
     CYCLING,
     FINAL_EXTENSION,
+    COMPLETE,
     STOPPED
 };
 
@@ -204,14 +205,15 @@ float Get_Thermocouple(){
 void handleFiveStageThermocycling() {
     float currentTime = millis();
 
+
     switch (currentPhase) {
         case INITIAL_DENATURATION:
-            setpoint = tempPhase1;  // Initial denaturation temperature (95°C)
-            if (input >= setpoint-2) {
+            setpoint = tempPhase1-1;  // Initial denaturation temperature (95°C)
+            if (input >= setpoint-1) {
                 if (cycleStartTime == 0) {
                     cycleStartTime = currentTime;  // Start the timer
                 }
-                if (currentTime/1000 - cycleStartTime/1000 >= holdTimePhase1) {
+                if (currentTime - cycleStartTime >= holdTimePhase1) {
                     // Move to the cycling phase
                     currentPhase = CYCLING;
                     cycleStartTime = 0;  // Reset for cycling phase
@@ -229,10 +231,10 @@ void handleFiveStageThermocycling() {
 
                     if (input >= tempPhase2 - 2) {  // When close enough to the setpoint
                         if (cycleStartTime == 0) {
-                            cycleStartTime = currentTime;  // Start the timer when reaching the setpoint
+                            cycleStartTime = currentTime/1000;  // Start the timer when reaching the setpoint
                         }
 
-                        if (currentTime/1000 - cycleStartTime/1000 >= holdTimePhase2) {
+                        if (currentTime/1000 - cycleStartTime >= holdTimePhase2) {
                             phase = 2;  // Move to the next phase
                             cycleStartTime = 0;  // Reset the timer for the next phase
                             analogWrite(fan, 255);  // Turn on fan for cooling
@@ -246,15 +248,14 @@ void handleFiveStageThermocycling() {
 
                     if (input <= tempPhase3 + 2) {  // When close enough to the setpoint
                         if (cycleStartTime == 0) {
-                            cycleStartTime = currentTime;  // Start the timer when reaching the setpoint
-                            analogWrite(fan, 0);  // Turn off fan for heating
+                            cycleStartTime = currentTime/1000;  // Start the timer when reaching the setpoint
                             
                         }
 
-                        if (currentTime/1000 - cycleStartTime/1000 >= holdTimePhase3) {
+                        if (currentTime/1000 - cycleStartTime >= holdTimePhase2) {
                             phase = 3;  // Move to the next phase
                             cycleStartTime = 0;  // Reset the timer for the next phase
-                            
+                            analogWrite(fan, 0);  // Turn off fan for heating
                         }
                     }
                 }
@@ -265,11 +266,11 @@ void handleFiveStageThermocycling() {
 
                     if (input >= tempPhase4 - 2) {  // When close enough to the setpoint
                         if (cycleStartTime == 0) {
-                            cycleStartTime = currentTime;  // Start the timer when reaching the setpoint
+                            cycleStartTime = currentTime/1000;  // Start the timer when reaching the setpoint
                         
                         }
 
-                        if (currentTime/1000 - cycleStartTime/1000 >= holdTimePhase4) {
+                        if (currentTime/1000 - cycleStartTime >= holdTimePhase3) {
                             phase = 1;  // Move to the end of the cycle
                             cycleStartTime = 0;  // Reset the timer
                             analogWrite(fan, 0);  // Ensure the fan is off
@@ -287,17 +288,16 @@ void handleFiveStageThermocycling() {
 
         case FINAL_EXTENSION:
             setpoint = tempPhase5;  // Final extension temperature (72°C)
-            if (input >= tempPhase5-2) {
+            if (input >= tempPhase5-1) {
                 if (cycleStartTime == 0) {
-                    cycleStartTime = currentTime;  // Start the timer
+                    cycleStartTime = currentTime/1000;  // Start the timer
                 }
-                if (currentTime/1000 - cycleStartTime/1000 >= holdTimePhase5) {
+                if (currentTime/1000 - cycleStartTime >= holdTimePhase5) {
                     // Move to the complete phase
                     currentPhase = STOPPED;
                     Serial.println("Final Extension Complete. Thermocycling finished.");
                 }
             }
-            break;
             
         case STOPPED:
             analogWrite(led, 0);
@@ -318,13 +318,15 @@ void handleFiveStageThermocycling() {
     int ledBrightness = constrain(static_cast<int>(output), 0, 255);
     analogWrite(led, ledBrightness);
 
-    Serial.print("Time: "); Serial.print(currentTime/1000);
+    Serial.print("Time: "); Serial.print(currentTime);
     Serial.print(" Temperature: "); Serial.print(input);
     Serial.print(" PID Output: "); Serial.print(ledBrightness);
-    Serial.print(" Time Count: "); Serial.print((currentTime/1000 - cycleStartTime/1000));
+    Serial.print(" Time Count: "); Serial.print((currentTime - cycleStartTime));
     Serial.print(" Setpoint: "); Serial.print(setpoint);
     Serial.print(" Cycle: "); Serial.print(cycleCount);
     Serial.print(" Phase: "); Serial.println(phase);
+
+
     // Minimal delay for stability
     delay(1);
 }
@@ -348,7 +350,7 @@ void ReadTemperature() {
     // Update the global 'input' variable by adding the PT100 temperature
     input = Voltage + temp_PT100; //temp_PT100: 22.69C   fitted equation: y=1.1561x−3.6771
     input = (input + 3.6771)/1.1561;
-    input = input +2.5;
+    input = input +1.5;
     //Serial.println(input);
 }
 
@@ -395,52 +397,22 @@ void handleSerialCommands() {
                     // Update the corresponding phase variables
                     switch (phaseIndex) {
                         case 0: tempPhase1 = temp; holdTimePhase1 = holdTime; break;
-                        case 1: tempPhase2 = temp; holdTimePhase2 = holdTime; break;
-                        case 2: tempPhase3 = temp; holdTimePhase3 = holdTime; break;
-                        case 3: tempPhase4 = temp; holdTimePhase4 = holdTime; break;
-                        case 4: tempPhase5 = temp; holdTimePhase5 = holdTime; break;
+                        case 1: tempPhase2 = temp; holdTimePhase2 = holdTime*1000; break;
+                        case 2: tempPhase3 = temp; holdTimePhase3 = holdTime*1000; break;
+                        case 3: tempPhase4 = temp; holdTimePhase4 = holdTime*1000; break;
+                        case 4: tempPhase5 = temp; holdTimePhase5 = holdTime*1000; break;
                     }
                     phaseIndex++;
                 }
                 startIndex = endIndex + 1; // Move to the next command
             }
         } 
-
-        else if (command.startsWith("T")) {
-
-            int firstComma = command.indexOf(',');
-            int secondComma = command.indexOf(',', firstComma + 1);
-
-            if (firstComma != -1 && secondComma != -1) {
-                float upperTemp = command.substring(1, firstComma).toFloat();
-                float lowerTemp = command.substring(firstComma + 1, secondComma).toFloat();
-                float setpt = command.substring(secondComma + 1).toFloat();
-
-                    UpperTemperatureThreshold = upperTemp;
-                    LowerTemperatureThreshold = lowerTemp;
-                    setpoint = setpt;
-                    Serial.print("Updated Thresholds -> Upper: ");
-                    Serial.print(UpperTemperatureThreshold);
-                    Serial.print(", Lower: ");
-                    Serial.print(LowerTemperatureThreshold);
-                    Serial.print(", Setpoint: ");
-                    Serial.println(setpoint);
-    }
-}
-
         
         else if (command == "START") {
             currentPhase = INITIAL_DENATURATION; // Restart the process
-            cycleCount = 1; // Reset cycle count
+            cycleCount = 0; // Reset cycle count
             i = 1;
             Serial.println("RESTARTING PROGRAM...");
-            // Start the thermocycling logic here
-        } 
-        else if (command == "START_SIMPLE") {
-// Restart the process
-            cycleCount = 1; // Reset cycle count
-            i = 2;
-            Serial.println("Start Ultrafast");
             // Start the thermocycling logic here
         } 
         else if (command == "STOP") {
@@ -453,7 +425,7 @@ void handleSerialCommands() {
 }
 
 void handleThermocyclingAndPID() {                           
-    float currentTime = millis();
+    unsigned long currentTime = millis();
     if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
@@ -494,7 +466,7 @@ void TuneFocus() {
 }
 
 void handleThermocycling() {
-    float currentTime = millis();
+    unsigned long currentTime = millis();
     if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
@@ -507,14 +479,10 @@ void handleThermocycling() {
             analogWrite(led,255);
         }
         // Debugging prints
-        Serial.print("Time: "); Serial.print(currentTime/1000);
+        Serial.print("Time: "); Serial.print(currentTime);
         Serial.print(" Temperature: "); Serial.print(input);
-        //Serial.print(" PIDoutput: "); Serial.print(ledBrightness);
-        Serial.print(" cycle: "); Serial.print(cycleCount);
-        Serial.print(" Total cycles: "); Serial.print(TotalCycles);
-        Serial.print(" Upper: "); Serial.print(UpperTemperatureThreshold);
-        Serial.print(" Lower: "); Serial.print(LowerTemperatureThreshold);
-        Serial.print(" Setpoint: "); Serial.println(setpoint);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.println(cycleCount);
 
         // Minimal delay for stability
         delay(1);
@@ -527,25 +495,18 @@ void setup() {
     pinMode(fan, OUTPUT);
     ThermocoupleSetup();
 
-    UpperTemperatureThreshold = 95;
-    LowerTemperatureThreshold = 60;
-    setpoint = 60;
-
 }
 
 void loop() {
         ReadTemperature();   //cuvette sample height 31mm
         //TuneFocus();  
-        handleSerialCommands();
+        //handleSerialCommands();
         
-        if (i == 1){
+        //if (i == 1){
         //handleThermocyclingAndPID();
         //handleThermocycling();
             handleFiveStageThermocycling();
-        }
-        if(i == 2){
-           handleThermocycling();
-        }
+        //}
     }
     
     // Add your thermocycling logic here

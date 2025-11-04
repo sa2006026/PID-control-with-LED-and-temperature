@@ -5,3 +5,30 @@
 .vscode/ipch
 .env
 myenv/
+
+# Data files
+Data/*.txt
+test/Data/
+test/*.txt
+test/**/*.txt
+filtered_data*.txt
+*.txt
+!requirements.txt
+!platformio.ini
+!README.md
+
+# Image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.ico
+
+# Excel files
+*.xlsx
+*.xls
+
+# macOS files
+.DS_Store

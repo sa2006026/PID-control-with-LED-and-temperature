@@ -47,11 +47,11 @@ unsigned long phaseStartTime = 0;
 float  tempPhase2, tempPhase3, tempPhase4, tempPhase5;
 int  holdTimePhase2, holdTimePhase3, holdTimePhase4, holdTimePhase5;
 
-float  tempPhase1;
-float  holdTimePhase1;
+float  tempPhase1 = 95;
+float  holdTimePhase1 = 240000;
 
-float UpperTemperatureThreshold;
-float LowerTemperatureThreshold;
+const float UpperTemperatureThreshold = 95;
+const float LowerTemperatureThreshold = 60;
 
 bool receivedData = false;  // Flag to track data reception
 
@@ -348,7 +348,7 @@ void ReadTemperature() {
     // Update the global 'input' variable by adding the PT100 temperature
     input = Voltage + temp_PT100; //temp_PT100: 22.69C   fitted equation: y=1.1561x−3.6771
     input = (input + 3.6771)/1.1561;
-    input = input +2.5;
+    input = input +6.5;
     //Serial.println(input);
 }
 
@@ -405,29 +405,6 @@ void handleSerialCommands() {
                 startIndex = endIndex + 1; // Move to the next command
             }
         } 
-
-        else if (command.startsWith("T")) {
-
-            int firstComma = command.indexOf(',');
-            int secondComma = command.indexOf(',', firstComma + 1);
-
-            if (firstComma != -1 && secondComma != -1) {
-                float upperTemp = command.substring(1, firstComma).toFloat();
-                float lowerTemp = command.substring(firstComma + 1, secondComma).toFloat();
-                float setpt = command.substring(secondComma + 1).toFloat();
-
-                    UpperTemperatureThreshold = upperTemp;
-                    LowerTemperatureThreshold = lowerTemp;
-                    setpoint = setpt;
-                    Serial.print("Updated Thresholds -> Upper: ");
-                    Serial.print(UpperTemperatureThreshold);
-                    Serial.print(", Lower: ");
-                    Serial.print(LowerTemperatureThreshold);
-                    Serial.print(", Setpoint: ");
-                    Serial.println(setpoint);
-    }
-}
-
         
         else if (command == "START") {
             currentPhase = INITIAL_DENATURATION; // Restart the process
@@ -453,7 +430,7 @@ void handleSerialCommands() {
 }
 
 void handleThermocyclingAndPID() {                           
-    float currentTime = millis();
+    unsigned long currentTime = millis();
     if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
@@ -494,7 +471,7 @@ void TuneFocus() {
 }
 
 void handleThermocycling() {
-    float currentTime = millis();
+    unsigned long currentTime = millis();
     if (cycleCount <= TotalCycles) {
         if (setpoint == UpperTemperatureThreshold && input >= UpperTemperatureThreshold - 1) {
             setpoint = LowerTemperatureThreshold;
@@ -507,14 +484,13 @@ void handleThermocycling() {
             analogWrite(led,255);
         }
         // Debugging prints
-        Serial.print("Time: "); Serial.print(currentTime/1000);
+        Serial.print("Time: "); Serial.print(currentTime);
         Serial.print(" Temperature: "); Serial.print(input);
-        //Serial.print(" PIDoutput: "); Serial.print(ledBrightness);
-        Serial.print(" cycle: "); Serial.print(cycleCount);
-        Serial.print(" Total cycles: "); Serial.print(TotalCycles);
-        Serial.print(" Upper: "); Serial.print(UpperTemperatureThreshold);
-        Serial.print(" Lower: "); Serial.print(LowerTemperatureThreshold);
-        Serial.print(" Setpoint: "); Serial.println(setpoint);
+        Serial.print(" PIDoutput "); Serial.print(ledBrightness);
+        Serial.print(" cycle "); Serial.print(cycleCount);
+        Serial.print(" Upper "); Serial.print(UpperTemperatureThreshold);
+        Serial.print(" Lower "); Serial.print(LowerTemperatureThreshold);
+        Serial.print(" Lower "); Serial.println(setpoint);
 
         // Minimal delay for stability
         delay(1);
@@ -526,10 +502,6 @@ void setup() {
     pinMode(led, OUTPUT);
     pinMode(fan, OUTPUT);
     ThermocoupleSetup();
-
-    UpperTemperatureThreshold = 95;
-    LowerTemperatureThreshold = 60;
-    setpoint = 60;
 
 }
 

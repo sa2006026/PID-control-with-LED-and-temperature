@@ -26,15 +26,16 @@ int fan = 6;                //fan pin
 
 
 // Thermocycle control constants
-const float UpperTemperatureThreshold = 95;
-const float LowerTemperatureThreshold = 72;
+const float UpperTemperatureThreshold = 91;
+const float LowerTemperatureThreshold = 60;
 
 float heatingHoldTime = 15000;   // Time to hold heating (15s)
 float coolingHoldTime = 60000;   // Time to hold cooling (1 min)
 
 unsigned long previousTime = 0;
 
-float setpoint = 0;
+
+float setpoint = 60;   //0 is  
 float input = 0;   // Read temperature sensor value
 float output = 0;
 float error = 0;
@@ -45,16 +46,16 @@ float cycleStartTime = 0;
 bool isHeatingPhase = true;  // To track the heating or cooling phase
 
 int cycleCount = 1;
-const int TotalCycles = 1;
+const int TotalCycles = 35;
 
 
-float tempPhase1 = 95.0; // Target temperature for phase 1
-float tempPhase2 = 56.2; // Target temperature for phase 2
-float tempPhase3 = 72.0; // Target temperature for phase 3
+// float tempPhase1 = 93.0; // Target temperature for phase 1
+// float tempPhase2 = 72.0; // Target temperature for phase 2
+// float tempPhase3 = 72.0; // Target temperature for phase 3
 
-unsigned long holdTimePhase1 = 15000; // Hold time for phase 1 in milliseconds (15 seconds)
-unsigned long holdTimePhase2 = 30000; // Hold time for phase 2 in millisecondsß (30 seconds)
-unsigned long holdTimePhase3 = 30000; // Hold time for phase 3 in milliseconds (30 seconds)
+// unsigned long holdTimePhase1 = 15000; // Hold time for phase 1 in milliseconds (15 seconds)
+// unsigned long holdTimePhase2 = 30000; // Hold time for phase 2 in millisecondsß (30 seconds)
+// unsigned long holdTimePhase3 = 30000; // Hold time for phase 3 in milliseconds (30 seconds)
 
 int phase = 1;  // Start with phase 1
 
